@@ -1,0 +1,162 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix schema: <http://schema.org/> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix food: <http://example.org/ontology/food#> .
+@prefix restaurant: <http://example.org/resource/restaurant/> .
+@prefix recipe: <http://example.org/resource/recipe/> .
+@prefix dish: <http://example.org/resource/dish/> .
+@prefix ingredient: <http://example.org/resource/ingredient/> .
+@prefix region: <http://example.org/resource/region/> .
+
+# 지역 정보
+region:Seoul a schema:AdministrativeArea ;
+    rdfs:label "서울"@ko, "Seoul"@en ;
+    schema:containedInPlace region:SouthKorea .
+
+region:Busan a schema:AdministrativeArea ;
+    rdfs:label "부산"@ko, "Busan"@en ;
+    schema:containedInPlace region:SouthKorea .
+
+region:Jeonju a schema:AdministrativeArea ;
+    rdfs:label "전주"@ko, "Jeonju"@en ;
+    schema:containedInPlace region:SouthKorea .
+
+region:SouthKorea a schema:Country ;
+    rdfs:label "대한민국"@ko, "South Korea"@en .
+
+# 음식점 정보
+restaurant:GangnamKoreanBBQ a schema:Restaurant ;
+    rdfs:label "강남 한식 바베큐"@ko, "Gangnam Korean BBQ"@en ;
+    schema:description "전통적인 한국식 바베큐를 제공하는 고급 레스토랑"@ko ;
+    schema:address "서울시 강남구 테헤란로 123"@ko ;
+    geo:lat "37.5025"^^xsd:float ;
+    geo:long "127.0228"^^xsd:float ;
+    schema:telephone "+82-2-1234-5678" ;
+    schema:servesCuisine "한식"@ko, "Korean"@en ;
+    food:signatureDish dish:Galbi ;
+    food:priceRange "$$" .
+
+restaurant:JeonjuBibimbapHouse a schema:Restaurant ;
+    rdfs:label "전주 비빔밥 하우스"@ko, "Jeonju Bibimbap House"@en ;
+    schema:description "전주 지역 전통 비빔밥을 전문으로 하는 식당"@ko ;
+    schema:address "전라북도 전주시 완산구 전동 100"@ko ;
+    geo:lat "35.8144"^^xsd:float ;
+    geo:long "127.1522"^^xsd:float ;
+    schema:telephone "+82-63-987-6543" ;
+    schema:servesCuisine "한식"@ko, "Korean"@en ;
+    food:signatureDish dish:JeonjuBibimbap ;
+    food:priceRange "$" .
+
+restaurant:BusanSeafoodMarket a schema:Restaurant ;
+    rdfs:label "부산 해산물 시장"@ko, "Busan Seafood Market"@en ;
+    schema:description "신선한 해산물 요리를 제공하는 부산의 유명 식당"@ko ;
+    schema:address "부산광역시 해운대구 해변로 50"@ko ;
+    geo:lat "35.1558"^^xsd:float ;
+    geo:long "129.1478"^^xsd:float ;
+    schema:telephone "+82-51-456-7890" ;
+    schema:servesCuisine "해산물"@ko, "Seafood"@en ;
+    food:signatureDish dish:HaemulTang ;
+    food:priceRange "$$" .
+
+# 요리 정보
+dish:Galbi a food:Dish ;
+    rdfs:label "갈비"@ko, "Galbi"@en ;
+    schema:description "한국식 바베큐 소갈비"@ko ;
+    food:originatesFrom region:Seoul ;
+    food:hasRecipe recipe:GalbiRecipe ;
+    food:mainIngredient ingredient:BeefRibs .
+
+dish:JeonjuBibimbap a food:Dish ;
+    rdfs:label "전주 비빔밥"@ko, "Jeonju Bibimbap"@en ;
+    schema:description "전주 지역의 전통 비빔밥"@ko ;
+    food:originatesFrom region:Jeonju ;
+    food:hasRecipe recipe:BibimbapRecipe ;
+    food:mainIngredient ingredient:Rice ;
+    food:ingredient ingredient:Vegetables ;
+    food:ingredient ingredient:BeefMince ;
+    food:ingredient ingredient:GochujangSauce .
+
+dish:HaemulTang a food:Dish ;
+    rdfs:label "해물탕"@ko, "Haemul Tang"@en ;
+    schema:description "매콤한 해산물 찌개"@ko ;
+    food:originatesFrom region:Busan ;
+    food:hasRecipe recipe:HaemulTangRecipe ;
+    food:mainIngredient ingredient:MixedSeafood ;
+    food:ingredient ingredient:Vegetables ;
+    food:ingredient ingredient:GochujangSauce .
+
+# 레시피 정보
+recipe:GalbiRecipe a food:Recipe ;
+    rdfs:label "갈비 레시피"@ko, "Galbi Recipe"@en ;
+    schema:description "맛있는 갈비 만드는 방법"@ko ;
+    food:cookingTime "120"^^xsd:integer ;
+    food:difficulty "중간"@ko, "Medium"@en ;
+    food:cookingMethod food:Grilling .
+
+recipe:BibimbapRecipe a food:Recipe ;
+    rdfs:label "비빔밥 레시피"@ko, "Bibimbap Recipe"@en ;
+    schema:description "전통 비빔밥 만드는 방법"@ko ;
+    food:cookingTime "45"^^xsd:integer ;
+    food:difficulty "쉬움"@ko, "Easy"@en ;
+    food:cookingMethod food:Mixing .
+
+recipe:HaemulTangRecipe a food:Recipe ;
+    rdfs:label "해물탕 레시피"@ko, "Haemul Tang Recipe"@en ;
+    schema:description "매콤한 해물탕 만드는 방법"@ko ;
+    food:cookingTime "60"^^xsd:integer ;
+    food:difficulty "중간"@ko, "Medium"@en ;
+    food:cookingMethod food:Boiling .
+
+# 재료 정보
+ingredient:BeefRibs a food:Ingredient ;
+    rdfs:label "소갈비"@ko, "Beef Ribs"@en ;
+    food:category food:Meat .
+
+ingredient:Rice a food:Ingredient ;
+    rdfs:label "쌀"@ko, "Rice"@en ;
+    food:category food:Grain .
+
+ingredient:Vegetables a food:Ingredient ;
+    rdfs:label "채소"@ko, "Vegetables"@en ;
+    food:category food:Vegetable .
+
+ingredient:BeefMince a food:Ingredient ;
+    rdfs:label "소고기 다짐육"@ko, "Beef Mince"@en ;
+    food:category food:Meat .
+
+ingredient:GochujangSauce a food:Ingredient ;
+    rdfs:label "고추장 소스"@ko, "Gochujang Sauce"@en ;
+    food:category food:Sauce ;
+    food:spicyLevel "중간"@ko, "Medium"@en .
+
+ingredient:MixedSeafood a food:Ingredient ;
+    rdfs:label "모듬 해산물"@ko, "Mixed Seafood"@en ;
+    food:category food:Seafood .
+
+# 요리 방법
+food:Grilling a food:CookingMethod ;
+    rdfs:label "구이"@ko, "Grilling"@en .
+
+food:Mixing a food:CookingMethod ;
+    rdfs:label "비빔"@ko, "Mixing"@en .
+
+food:Boiling a food:CookingMethod ;
+    rdfs:label "끓이기"@ko, "Boiling"@en .
+
+# 재료 카테고리
+food:Meat a food:IngredientCategory ;
+    rdfs:label "육류"@ko, "Meat"@en .
+
+food:Grain a food:IngredientCategory ;
+    rdfs:label "곡물"@ko, "Grain"@en .
+
+food:Vegetable a food:IngredientCategory ;
+    rdfs:label "채소"@ko, "Vegetable"@en .
+
+food:Sauce a food:IngredientCategory ;
+    rdfs:label "소스"@ko, "Sauce"@en .
+
+food:Seafood a food:IngredientCategory ;
+    rdfs:label "해산물"@ko, "Seafood"@en . 

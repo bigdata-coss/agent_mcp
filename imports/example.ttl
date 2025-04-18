@@ -1,0 +1,64 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ex: <http://example.org/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+
+# 사람 정보
+ex:Person1 a foaf:Person ;
+    foaf:name "홍길동"@ko ;
+    foaf:age "30"^^xsd:integer ;
+    foaf:mbox <mailto:hong@example.org> ;
+    ex:livesIn ex:Seoul .
+
+ex:Person2 a foaf:Person ;
+    foaf:name "김철수"@ko ;
+    foaf:age "25"^^xsd:integer ;
+    foaf:mbox <mailto:kim@example.org> ;
+    ex:livesIn ex:Busan ;
+    ex:friendOf ex:Person1 .
+
+# 도시 정보
+ex:Seoul a ex:City ;
+    rdfs:label "서울"@ko ;
+    ex:population "9776000"^^xsd:integer ;
+    ex:country ex:SouthKorea .
+
+ex:Busan a ex:City ;
+    rdfs:label "부산"@ko ;
+    ex:population "3429000"^^xsd:integer ;
+    ex:country ex:SouthKorea .
+
+# 국가 정보
+ex:SouthKorea a ex:Country ;
+    rdfs:label "대한민국"@ko ;
+    ex:capital ex:Seoul .
+
+# 학교 정보
+ex:SeoulUniversity a ex:University ;
+    rdfs:label "서울대학교"@ko ;
+    ex:locatedIn ex:Seoul .
+
+ex:BusanUniversity a ex:University ;
+    rdfs:label "부산대학교"@ko ;
+    ex:locatedIn ex:Busan .
+
+# 학생 정보
+ex:Person1 ex:studiesAt ex:SeoulUniversity .
+ex:Person2 ex:studiesAt ex:BusanUniversity .
+
+# 과목 정보
+ex:ComputerScience a ex:Subject ;
+    rdfs:label "컴퓨터 과학"@ko .
+
+ex:Mathematics a ex:Subject ;
+    rdfs:label "수학"@ko .
+
+ex:Physics a ex:Subject ;
+    rdfs:label "물리학"@ko .
+
+# 수강 정보
+ex:Person1 ex:studies ex:ComputerScience .
+ex:Person1 ex:studies ex:Mathematics .
+ex:Person2 ex:studies ex:Physics .
+ex:Person2 ex:studies ex:Mathematics . 
