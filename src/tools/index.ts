@@ -953,7 +953,7 @@ export const tools = [
   },
   {
     name: 'mcp_gemini_generate_images',
-    description: 'Google Imagen 모델을 사용하여 이미지를 생성합니다. 생성된 이미지 파일 경로를 반환하며, 이 경로는 반드시 사용자에게 알려주어야 합니다.',
+    description: 'Google Imagen 모델을 사용하여 이미지를 생성합니다. 곧 mcp_gemini_generate_image 도구로 대체될 예정입니다.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -993,11 +993,12 @@ export const tools = [
     },
     async handler(args: any): Promise<ToolResponse> {
       try {
-        const result = await geminiService.generateImages(args);
+        // 기존 호환성을 위해 generateImage 함수 호출
+        const result = await geminiService.generateImage(args);
         return {
           content: [{
             type: 'text',
-            text: `이미지가 성공적으로 생성되었습니다. 생성된 이미지 파일: ${JSON.stringify(result.images)}\n총 ${result.count}개의 이미지가 생성되었습니다.`
+            text: JSON.stringify(result, null, 2)
           }]
         };
       } catch (error) {
@@ -1005,6 +1006,94 @@ export const tools = [
           content: [{
             type: 'text',
             text: `Gemini 이미지 생성 오류: ${error instanceof Error ? error.message : String(error)}`
+          }]
+        };
+      }
+    }
+  },
+  {
+    name: 'mcp_gemini_generate_image',
+    description: 'Google Gemini 또는 Imagen 모델을 사용하여 이미지를 생성합니다. 모델 이름에 따라 적절한 API가 자동으로 선택됩니다. 생성된 이미지 파일 경로를 반환하며, 이 경로는 반드시 사용자에게 알려주어야 합니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: {
+          type: 'string',
+          description: '사용할 모델 ID (예: imagen-3.0-generate-002, gemini-2.0-flash-exp-image-generation)',
+          default: 'imagen-3.0-generate-002',
+        },
+        prompt: {
+          type: 'string',
+          description: '이미지 생성을 위한 텍스트 프롬프트',
+        },
+        numberOfImages: {
+          type: 'number',
+          description: '생성할 이미지 수 (1-4, Imagen 모델 전용)',
+          default: 1,
+          minimum: 1,
+          maximum: 4,
+        },
+        aspectRatio: {
+          type: 'string',
+          description: '이미지 가로세로 비율 (Imagen 모델 전용)',
+          default: '1:1',
+          enum: ['1:1', '3:4', '4:3', '9:16', '16:9']
+        },
+        personGeneration: {
+          type: 'string',
+          description: '사람 이미지 생성 허용 여부 (Imagen 모델 전용)',
+          default: 'ALLOW_ADULT',
+          enum: ['DONT_ALLOW', 'ALLOW_ADULT']
+        },
+        size: {
+          type: 'string',
+          description: '생성할 이미지 크기',
+          default: '1024x1024',
+        },
+        saveDir: {
+          type: 'string',
+          description: '이미지를 저장할 디렉토리',
+          default: './temp',
+        },
+        fileName: {
+          type: 'string',
+          description: '저장할 이미지 파일 이름 (확장자 제외)',
+        },
+        imageData: {
+          type: 'string',
+          description: '이미지 편집 시 사용할 Base64로 인코딩된 이미지 데이터 (Gemini 모델 전용)',
+        },
+        imageMimeType: {
+          type: 'string',
+          description: '이미지 MIME 타입 (Gemini 모델 전용)',
+          default: 'image/png',
+        },
+        responseModalities: {
+          type: 'array',
+          description: '응답에 포함할 모달리티 (Gemini 모델 전용)',
+          default: ["TEXT", "IMAGE"],
+          items: {
+            type: 'string',
+            enum: ["TEXT", "IMAGE"]
+          }
+        }
+      },
+      required: ['prompt']
+    },
+    async handler(args: any): Promise<ToolResponse> {
+      try {
+        const result = await geminiService.generateImage(args);
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `이미지 생성 오류: ${error instanceof Error ? error.message : String(error)}`
           }]
         };
       }

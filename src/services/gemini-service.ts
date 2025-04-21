@@ -267,71 +267,327 @@ class GeminiService {
   }
 
   /**
-   * Imagen 모델을 사용하여 이미지를 생성합니다.
+   * Gemini 또는 Imagen 모델을 사용하여 이미지를 생성합니다.
+   * 
+   * @param model - 사용할 모델 ID
+   *   - 'imagen-3.0-generate-002'와 같은 Imagen 모델 사용 시 Imagen API 호출
+   *   - 'gemini-2.0-flash-exp-image-generation'과 같은 Gemini 모델 사용 시 Gemini API 호출
+   * @param prompt - 이미지 생성을 위한 텍스트 프롬프트
+   * @param options - 추가 옵션 (모델에 따라 사용되는 옵션이 다름)
+   * @returns 생성된 이미지 파일 경로와 관련 정보
    */
-  async generateImages({
+  async generateImage({
     model,
     prompt,
     numberOfImages = 1,
     size = '1024x1024',
+    aspectRatio = '1:1',
+    personGeneration = 'ALLOW_ADULT',
+    saveDir = './temp',
+    fileName,
+    imageData,
+    imageMimeType = 'image/png',
+    responseModalities = ["TEXT", "IMAGE"],
+  }: {
+    model: string;
+    prompt: string;
+    numberOfImages?: number;
+    size?: string;
+    aspectRatio?: string;
+    personGeneration?: string;
+    saveDir?: string;
+    fileName?: string;
+    imageData?: string; // 이미지 편집에 사용 (Gemini 모델)
+    imageMimeType?: string; // 이미지 MIME 타입 (Gemini 모델)
+    responseModalities?: string[]; // Gemini 모델 응답 형식
+  }) {
+    try {
+      if (!fileName) {
+        fileName = model.includes('imagen') 
+          ? `imagen-${Date.now()}`
+          : `gemini-${Date.now()}`;
+      }
+
+      // Imagen 모델 (Imagen 3)
+      if (model.includes('imagen')) {
+        return await this.generateImageWithImagen({
+          model,
+          prompt,
+          numberOfImages,
+          aspectRatio,
+          personGeneration,
+          saveDir,
+          fileName
+        });
+      } 
+      // Gemini 모델 (Gemini 2.0)
+      else {
+        // 이미지 편집 (이미지 데이터가 제공된 경우)
+        if (imageData) {
+          return await this.generateImageWithGeminiEdit({
+            model,
+            prompt,
+            imageData,
+            imageMimeType,
+            saveDir,
+            fileName,
+            responseModalities
+          });
+        } 
+        // 새 이미지 생성
+        else {
+          return await this.generateImageWithGemini({
+            model,
+            prompt,
+            saveDir,
+            fileName,
+            responseModalities
+          });
+        }
+      }
+    } catch (error) {
+      throw this.formatError(error);
+    }
+  }
+
+  /**
+   * Imagen 모델을 사용하여 이미지를 생성합니다. (내부 사용)
+   */
+  private async generateImageWithImagen({
+    model,
+    prompt,
+    numberOfImages = 1,
+    aspectRatio = '1:1',
+    personGeneration = 'ALLOW_ADULT',
     saveDir = './temp',
     fileName = `imagen-${Date.now()}`,
   }: {
     model: string;
     prompt: string;
     numberOfImages?: number;
-    size?: string;
+    aspectRatio?: string;
+    personGeneration?: string;
     saveDir?: string;
     fileName?: string;
   }) {
-    try {
-      const config = this.getRequestConfig();
-      const url = `${this.baseUrl}/models/${model}:generateImages`;
+    const config = this.getRequestConfig();
+    const url = `${this.baseUrl}/models/${model}:generateImages`;
 
-      const response = await axios.post(
-        url,
-        {
-          prompt: {
-            text: prompt,
-          },
-          sampleCount: numberOfImages,
-          sampleImageSize: size,
-        },
-        config
-      );
-
-      // 이미지 응답 처리
-      const generatedImages = response.data.images || [];
-      const savedFiles = [];
-
-      const fs = await import('fs');
-      const path = await import('path');
-
-      // 저장 디렉토리가 없으면 생성
-      if (!fs.existsSync(saveDir)) {
-        fs.mkdirSync(saveDir, { recursive: true });
-      }
-
-      // 이미지 저장
-      for (let i = 0; i < generatedImages.length; i++) {
-        const imageData = generatedImages[i].bytesBase64;
-        if (imageData) {
-          const buffer = Buffer.from(imageData, 'base64');
-          const filePath = path.join(saveDir, `${fileName}-${i + 1}.png`);
-          fs.writeFileSync(filePath, buffer);
-          savedFiles.push(filePath);
+    const response = await axios.post(
+      url,
+      {
+        prompt,
+        config: {
+          numberOfImages,
+          aspectRatio,
+          personGeneration
         }
-      }
+      },
+      config
+    );
 
-      return {
-        model: model,
-        prompt: prompt,
-        images: savedFiles,
-        count: savedFiles.length,
-      };
-    } catch (error) {
-      throw this.formatError(error);
+    // 이미지 응답 처리
+    const generatedImages = response.data.generatedImages || [];
+    const savedFiles = [];
+
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 저장 디렉토리가 없으면 생성
+    if (!fs.existsSync(saveDir)) {
+      fs.mkdirSync(saveDir, { recursive: true });
     }
+
+    // 이미지 저장
+    for (let i = 0; i < generatedImages.length; i++) {
+      const imageData = generatedImages[i]?.image?.imageBytes;
+      if (imageData) {
+        const buffer = Buffer.from(imageData, 'base64');
+        const filePath = path.join(saveDir, `${fileName}-${i + 1}.png`);
+        fs.writeFileSync(filePath, buffer);
+        savedFiles.push(filePath);
+      }
+    }
+
+    return {
+      model: model,
+      prompt: prompt,
+      images: savedFiles,
+      count: savedFiles.length,
+      text: [],
+    };
+  }
+
+  /**
+   * Gemini 모델을 사용하여 텍스트 프롬프트에서 이미지를 생성합니다. (내부 사용)
+   */
+  private async generateImageWithGemini({
+    model,
+    prompt,
+    saveDir = './temp',
+    fileName = `gemini-${Date.now()}`,
+    responseModalities = ["TEXT", "IMAGE"],
+  }: {
+    model: string;
+    prompt: string;
+    saveDir?: string;
+    fileName?: string;
+    responseModalities?: string[];
+  }) {
+    const config = this.getRequestConfig();
+    const url = `${this.baseUrl}/models/${model}:generateContent`;
+
+    const response = await axios.post(
+      url,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseModalities,
+        },
+      },
+      config
+    );
+
+    // 파일 시스템 모듈 임포트
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 저장 디렉토리가 없으면 생성
+    if (!fs.existsSync(saveDir)) {
+      fs.mkdirSync(saveDir, { recursive: true });
+    }
+
+    // 응답 처리
+    const parts = response.data.candidates?.[0]?.content?.parts || [];
+    const result: {
+      text: string[];
+      images: string[];
+    } = {
+      text: [],
+      images: [],
+    };
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      
+      if (part.text) {
+        result.text.push(part.text);
+      } else if (part.inlineData) {
+        const imageData = part.inlineData.data;
+        const buffer = Buffer.from(imageData, 'base64');
+        const filePath = path.join(saveDir, `${fileName}-${i + 1}.png`);
+        
+        fs.writeFileSync(filePath, buffer);
+        result.images.push(filePath);
+      }
+    }
+
+    return {
+      model: model,
+      prompt: prompt,
+      text: result.text,
+      images: result.images,
+      count: result.images.length,
+    };
+  }
+
+  /**
+   * Gemini 모델을 사용하여 이미지를 편집합니다. (내부 사용)
+   */
+  private async generateImageWithGeminiEdit({
+    model,
+    prompt,
+    imageData,
+    imageMimeType = 'image/png',
+    saveDir = './temp',
+    fileName = `gemini-edited-${Date.now()}`,
+    responseModalities = ["TEXT", "IMAGE"],
+  }: {
+    model: string;
+    prompt: string;
+    imageData: string;
+    imageMimeType?: string;
+    saveDir?: string;
+    fileName?: string;
+    responseModalities?: string[];
+  }) {
+    const config = this.getRequestConfig();
+    const url = `${this.baseUrl}/models/${model}:generateContent`;
+
+    const response = await axios.post(
+      url,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+              {
+                inlineData: {
+                  mimeType: imageMimeType,
+                  data: imageData,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseModalities,
+        },
+      },
+      config
+    );
+
+    // 파일 시스템 모듈 임포트
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 저장 디렉토리가 없으면 생성
+    if (!fs.existsSync(saveDir)) {
+      fs.mkdirSync(saveDir, { recursive: true });
+    }
+
+    // 응답 처리
+    const parts = response.data.candidates?.[0]?.content?.parts || [];
+    const result: {
+      text: string[];
+      images: string[];
+    } = {
+      text: [],
+      images: [],
+    };
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      
+      if (part.text) {
+        result.text.push(part.text);
+      } else if (part.inlineData) {
+        const imageData = part.inlineData.data;
+        const buffer = Buffer.from(imageData, 'base64');
+        const filePath = path.join(saveDir, `${fileName}-${i + 1}.png`);
+        
+        fs.writeFileSync(filePath, buffer);
+        result.images.push(filePath);
+      }
+    }
+
+    return {
+      model: model,
+      prompt: prompt,
+      text: result.text,
+      images: result.images,
+      count: result.images.length,
+    };
   }
 
   /**
@@ -524,6 +780,180 @@ class GeminiService {
 
       return {
         model: model,
+        text: result.text,
+        images: result.images,
+      };
+    } catch (error) {
+      throw this.formatError(error);
+    }
+  }
+
+  /**
+   * Gemini 2.0 모델을 사용하여 텍스트 프롬프트에서 이미지를 생성합니다.
+   */
+  async generateGeminiImage({
+    model,
+    prompt,
+    saveDir = './temp',
+    fileName = `gemini-${Date.now()}`,
+  }: {
+    model: string;
+    prompt: string;
+    saveDir?: string;
+    fileName?: string;
+  }) {
+    try {
+      const config = this.getRequestConfig();
+      const url = `${this.baseUrl}/models/${model}:generateContent`;
+
+      const response = await axios.post(
+        url,
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ["TEXT", "IMAGE"],
+          },
+        },
+        config
+      );
+
+      // 파일 시스템 모듈 임포트
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // 저장 디렉토리가 없으면 생성
+      if (!fs.existsSync(saveDir)) {
+        fs.mkdirSync(saveDir, { recursive: true });
+      }
+
+      // 응답 처리
+      const parts = response.data.candidates?.[0]?.content?.parts || [];
+      const result: {
+        text: string[];
+        images: string[];
+      } = {
+        text: [],
+        images: [],
+      };
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        
+        if (part.text) {
+          result.text.push(part.text);
+        } else if (part.inlineData) {
+          const imageData = part.inlineData.data;
+          const buffer = Buffer.from(imageData, 'base64');
+          const filePath = path.join(saveDir, `${fileName}-${i + 1}.png`);
+          
+          fs.writeFileSync(filePath, buffer);
+          result.images.push(filePath);
+        }
+      }
+
+      return {
+        model: model,
+        prompt: prompt,
+        text: result.text,
+        images: result.images,
+      };
+    } catch (error) {
+      throw this.formatError(error);
+    }
+  }
+
+  /**
+   * Gemini 2.0 모델을 사용하여 이미지를 편집합니다.
+   */
+  async editGeminiImage({
+    model,
+    prompt,
+    imageData,
+    imageMimeType = 'image/png',
+    saveDir = './temp',
+    fileName = `gemini-edited-${Date.now()}`,
+  }: {
+    model: string;
+    prompt: string;
+    imageData: string;
+    imageMimeType?: string;
+    saveDir?: string;
+    fileName?: string;
+  }) {
+    try {
+      const config = this.getRequestConfig();
+      const url = `${this.baseUrl}/models/${model}:generateContent`;
+
+      const response = await axios.post(
+        url,
+        {
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+                {
+                  inlineData: {
+                    mimeType: imageMimeType,
+                    data: imageData,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ["TEXT", "IMAGE"],
+          },
+        },
+        config
+      );
+
+      // 파일 시스템 모듈 임포트
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // 저장 디렉토리가 없으면 생성
+      if (!fs.existsSync(saveDir)) {
+        fs.mkdirSync(saveDir, { recursive: true });
+      }
+
+      // 응답 처리
+      const parts = response.data.candidates?.[0]?.content?.parts || [];
+      const result: {
+        text: string[];
+        images: string[];
+      } = {
+        text: [],
+        images: [],
+      };
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        
+        if (part.text) {
+          result.text.push(part.text);
+        } else if (part.inlineData) {
+          const imageData = part.inlineData.data;
+          const buffer = Buffer.from(imageData, 'base64');
+          const filePath = path.join(saveDir, `${fileName}-${i + 1}.png`);
+          
+          fs.writeFileSync(filePath, buffer);
+          result.images.push(filePath);
+        }
+      }
+
+      return {
+        model: model,
+        prompt: prompt,
         text: result.text,
         images: result.images,
       };
