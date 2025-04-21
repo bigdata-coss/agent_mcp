@@ -596,7 +596,7 @@ export const tools = [
   },
   {
     name: 'mcp_openai_image',
-    description: 'OpenAI DALL-E API를 사용하여 이미지를 생성합니다',
+    description: 'OpenAI DALL-E API를 사용하여 이미지를 생성합니다. 생성된 이미지 파일 경로를 반환하며, 이 경로는 반드시 사용자에게 알려주어야 합니다.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -661,7 +661,7 @@ export const tools = [
   },
   {
     name: 'mcp_openai_tts',
-    description: 'OpenAI TTS API를 사용하여 텍스트를 음성으로 변환합니다',
+    description: 'OpenAI TTS API를 사용하여 텍스트를 음성으로 변환합니다. 생성된 오디오 파일 경로를 반환하며, 이 경로는 반드시 사용자에게 알려주어야 합니다.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -716,7 +716,7 @@ export const tools = [
   },
   {
     name: 'mcp_openai_transcribe',
-    description: 'OpenAI Whisper API를 사용하여 음성을 텍스트로 변환합니다',
+    description: 'OpenAI Whisper API를 사용하여 음성을 텍스트로 변환합니다. 변환된 텍스트를 반환합니다.',
     inputSchema: {
       type: 'object',
       properties: {

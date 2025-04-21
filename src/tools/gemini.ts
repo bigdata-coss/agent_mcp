@@ -137,7 +137,7 @@ const geminiTools = {
   },
 
   mcp_gemini_generate_images: {
-    description: 'Google Imagen 모델을 사용하여 이미지를 생성합니다.',
+    description: 'Google Imagen 모델을 사용하여 이미지를 생성합니다. 생성된 이미지 파일 경로를 반환하며, 이 경로는 반드시 사용자에게 알려주어야 합니다.',
     parameters: {
       type: 'object',
       required: ['prompt'],
@@ -188,7 +188,7 @@ const geminiTools = {
   },
 
   mcp_gemini_generate_videos: {
-    description: 'Google Veo 모델을 사용하여 비디오를 생성합니다.',
+    description: 'Google Veo 모델을 사용하여 비디오를 생성합니다. 생성된 비디오 파일 경로를 반환하며, 이 경로는 반드시 사용자에게 알려주어야 합니다.',
     parameters: {
       type: 'object',
       required: ['prompt'],
@@ -270,7 +270,7 @@ const geminiTools = {
   },
 
   mcp_gemini_generate_multimodal_content: {
-    description: 'Gemini 모델을 사용하여 텍스트와 이미지를 포함한 멀티모달 콘텐츠를 생성합니다.',
+    description: 'Gemini 모델을 사용하여 텍스트와 이미지를 포함한 멀티모달 콘텐츠를 생성합니다. 생성된 텍스트와 이미지 파일 경로를 반환하며, 이 정보는 반드시 사용자에게 알려주어야 합니다.',
     parameters: {
       type: 'object',
       required: ['contents'],
