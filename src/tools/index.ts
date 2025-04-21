@@ -950,5 +950,250 @@ export const tools = [
         };
       }
     }
+  },
+  {
+    name: 'mcp_gemini_generate_images',
+    description: 'Google Imagen 모델을 사용하여 이미지를 생성합니다. 생성된 이미지 파일 경로를 반환하며, 이 경로는 반드시 사용자에게 알려주어야 합니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: {
+          type: 'string',
+          description: '사용할 모델 ID (예: imagen-3.0-generate-002)',
+          default: 'imagen-3.0-generate-002',
+        },
+        prompt: {
+          type: 'string',
+          description: '이미지 생성을 위한 텍스트 프롬프트',
+        },
+        numberOfImages: {
+          type: 'number',
+          description: '생성할 이미지 수 (1-4)',
+          default: 1,
+          minimum: 1,
+          maximum: 4,
+        },
+        size: {
+          type: 'string',
+          description: '생성할 이미지 크기',
+          default: '1024x1024',
+        },
+        saveDir: {
+          type: 'string',
+          description: '이미지를 저장할 디렉토리',
+          default: './temp',
+        },
+        fileName: {
+          type: 'string',
+          description: '저장할 이미지 파일 이름 (확장자 제외)',
+          default: `imagen-${Date.now()}`,
+        },
+      },
+      required: ['prompt']
+    },
+    async handler(args: any): Promise<ToolResponse> {
+      try {
+        const result = await geminiService.generateImages(args);
+        return {
+          content: [{
+            type: 'text',
+            text: `이미지가 성공적으로 생성되었습니다. 생성된 이미지 파일: ${JSON.stringify(result.images)}\n총 ${result.count}개의 이미지가 생성되었습니다.`
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Gemini 이미지 생성 오류: ${error instanceof Error ? error.message : String(error)}`
+          }]
+        };
+      }
+    }
+  },
+  {
+    name: 'mcp_gemini_generate_videos',
+    description: 'Google Veo 모델을 사용하여 비디오를 생성합니다. 생성된 비디오 파일 경로를 반환하며, 이 경로는 반드시 사용자에게 알려주어야 합니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: {
+          type: 'string',
+          description: '사용할 모델 ID (예: veo-2.0-generate-001)',
+          default: 'veo-2.0-generate-001',
+        },
+        prompt: {
+          type: 'string',
+          description: '비디오 생성을 위한 텍스트 프롬프트',
+        },
+        image: {
+          type: 'object',
+          description: '비디오의 첫 프레임으로 사용할 이미지 (선택 사항)',
+          properties: {
+            imageBytes: {
+              type: 'string',
+              description: 'Base64로 인코딩된 이미지 데이터',
+            },
+            mimeType: {
+              type: 'string',
+              description: '이미지 MIME 타입 (예: image/png)',
+            },
+          },
+        },
+        numberOfVideos: {
+          type: 'number',
+          description: '생성할 비디오 수 (1-2)',
+          default: 1,
+          minimum: 1,
+          maximum: 2,
+        },
+        aspectRatio: {
+          type: 'string',
+          description: '비디오의 가로세로 비율',
+          default: '16:9',
+          enum: ['16:9', '9:16'],
+        },
+        personGeneration: {
+          type: 'string',
+          description: '사람 생성 허용 설정',
+          default: 'dont_allow',
+          enum: ['dont_allow', 'allow_adult'],
+        },
+        durationSeconds: {
+          type: 'number',
+          description: '비디오 길이(초)',
+          default: 5,
+          minimum: 5,
+          maximum: 8,
+        },
+        saveDir: {
+          type: 'string',
+          description: '비디오를 저장할 디렉토리',
+          default: './temp',
+        },
+        fileName: {
+          type: 'string',
+          description: '저장할 비디오 파일 이름 (확장자 제외)',
+          default: `veo-${Date.now()}`,
+        },
+      },
+      required: ['prompt']
+    },
+    async handler(args: any): Promise<ToolResponse> {
+      try {
+        const result = await geminiService.generateVideos(args);
+        return {
+          content: [{
+            type: 'text',
+            text: `비디오가 성공적으로 생성되었습니다. 생성된 비디오 파일: ${JSON.stringify(result.videos)}\n총 ${result.count}개의 비디오가 생성되었습니다.`
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Gemini 비디오 생성 오류: ${error instanceof Error ? error.message : String(error)}`
+          }]
+        };
+      }
+    }
+  },
+  {
+    name: 'mcp_gemini_generate_multimodal_content',
+    description: 'Gemini 모델을 사용하여 텍스트와 이미지를 포함한 멀티모달 콘텐츠를 생성합니다. 생성된 텍스트와 이미지 파일 경로를 반환하며, 이 정보는 반드시 사용자에게 알려주어야 합니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: {
+          type: 'string',
+          description: '사용할 Gemini 모델 ID (예: gemini-2.0-flash-exp-image-generation)',
+          default: 'gemini-2.0-flash',
+        },
+        contents: {
+          type: 'array',
+          description: '입력 콘텐츠 (텍스트나 이미지)',
+          items: {
+            type: 'object',
+            properties: {
+              text: {
+                type: 'string',
+                description: '텍스트 콘텐츠',
+              },
+              inlineData: {
+                type: 'object',
+                description: '인라인 이미지 데이터',
+                properties: {
+                  mimeType: {
+                    type: 'string',
+                    description: '이미지 MIME 타입 (예: image/png)',
+                  },
+                  data: {
+                    type: 'string',
+                    description: 'Base64로 인코딩된 이미지 데이터',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responseModalities: {
+          type: 'array',
+          description: '응답에 포함할 모달리티 (텍스트, 이미지)',
+          default: ['text', 'image'],
+          items: {
+            type: 'string',
+            enum: ['text', 'image'],
+          },
+        },
+        temperature: {
+          type: 'number',
+          description: '생성 랜덤성 정도 (0.0 - 2.0)',
+          default: 0.7,
+        },
+        max_tokens: {
+          type: 'number',
+          description: '생성할 최대 토큰 수',
+          default: 1024,
+        },
+        saveDir: {
+          type: 'string',
+          description: '생성된 이미지를 저장할 디렉토리',
+          default: './temp',
+        },
+        fileName: {
+          type: 'string',
+          description: '저장할 이미지 파일 이름 (확장자 제외)',
+          default: `gemini-multimodal-${Date.now()}`,
+        },
+      },
+      required: ['contents']
+    },
+    async handler(args: any): Promise<ToolResponse> {
+      try {
+        const result = await geminiService.generateMultimodalContent(args);
+        let responseText = "";
+        
+        if (result.text && result.text.length > 0) {
+          responseText += `생성된 텍스트:\n${result.text.join('\n\n')}\n\n`;
+        }
+        
+        if (result.images && result.images.length > 0) {
+          responseText += `생성된 이미지 파일: ${JSON.stringify(result.images)}\n총 ${result.images.length}개의 이미지가 생성되었습니다.`;
+        }
+        
+        return {
+          content: [{
+            type: 'text',
+            text: responseText
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Gemini 멀티모달 콘텐츠 생성 오류: ${error instanceof Error ? error.message : String(error)}`
+          }]
+        };
+      }
+    }
   }
 ];

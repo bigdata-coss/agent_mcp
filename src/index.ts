@@ -43,7 +43,10 @@ const server = new Server(
         mcp_openai_embedding: true,
         mcp_gemini_generate_text: true,
         mcp_gemini_chat_completion: true,
-        mcp_gemini_list_models: true
+        mcp_gemini_list_models: true,
+        mcp_gemini_generate_images: true,
+        mcp_gemini_generate_videos: true,
+        mcp_gemini_generate_multimodal_content: true
       },
     },
   }
