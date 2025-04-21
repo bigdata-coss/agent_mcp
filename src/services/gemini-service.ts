@@ -265,6 +265,272 @@ class GeminiService {
       throw this.formatError(error);
     }
   }
+
+  /**
+   * Imagen 모델을 사용하여 이미지를 생성합니다.
+   */
+  async generateImages({
+    model,
+    prompt,
+    numberOfImages = 1,
+    size = '1024x1024',
+    saveDir = './temp',
+    fileName = `imagen-${Date.now()}`,
+  }: {
+    model: string;
+    prompt: string;
+    numberOfImages?: number;
+    size?: string;
+    saveDir?: string;
+    fileName?: string;
+  }) {
+    try {
+      const config = this.getRequestConfig();
+      const url = `${this.baseUrl}/models/${model}:generateImages`;
+
+      const response = await axios.post(
+        url,
+        {
+          prompt: {
+            text: prompt,
+          },
+          sampleCount: numberOfImages,
+          sampleImageSize: size,
+        },
+        config
+      );
+
+      // 이미지 응답 처리
+      const generatedImages = response.data.images || [];
+      const savedFiles = [];
+
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // 저장 디렉토리가 없으면 생성
+      if (!fs.existsSync(saveDir)) {
+        fs.mkdirSync(saveDir, { recursive: true });
+      }
+
+      // 이미지 저장
+      for (let i = 0; i < generatedImages.length; i++) {
+        const imageData = generatedImages[i].bytesBase64;
+        if (imageData) {
+          const buffer = Buffer.from(imageData, 'base64');
+          const filePath = path.join(saveDir, `${fileName}-${i + 1}.png`);
+          fs.writeFileSync(filePath, buffer);
+          savedFiles.push(filePath);
+        }
+      }
+
+      return {
+        model: model,
+        prompt: prompt,
+        images: savedFiles,
+        count: savedFiles.length,
+      };
+    } catch (error) {
+      throw this.formatError(error);
+    }
+  }
+
+  /**
+   * Veo 모델을 사용하여 비디오를 생성합니다.
+   */
+  async generateVideos({
+    model,
+    prompt,
+    image = null,
+    numberOfVideos = 1,
+    aspectRatio = '16:9',
+    personGeneration = 'dont_allow',
+    durationSeconds = 5,
+    saveDir = './temp',
+    fileName = `veo-${Date.now()}`,
+  }: {
+    model: string;
+    prompt: string;
+    image?: { imageBytes: string; mimeType: string } | null;
+    numberOfVideos?: number;
+    aspectRatio?: string;
+    personGeneration?: string;
+    durationSeconds?: number;
+    saveDir?: string;
+    fileName?: string;
+  }) {
+    try {
+      const config = this.getRequestConfig();
+      const url = `${this.baseUrl}/models/${model}:generateVideos`;
+
+      const requestData: any = {
+        prompt: {
+          text: prompt,
+        },
+        config: {
+          aspectRatio,
+          numberOfVideos,
+          durationSeconds,
+          personGeneration,
+        }
+      };
+
+      // 이미지가 제공된 경우 추가
+      if (image) {
+        requestData.image = image;
+      }
+
+      // 비디오 생성 요청 시작
+      const response = await axios.post(url, requestData, config);
+      
+      // 작업 ID 가져오기
+      const operationName = response.data.name;
+      
+      if (!operationName) {
+        throw new Error('비디오 생성 작업을 시작할 수 없습니다.');
+      }
+
+      // 비동기 작업 상태 확인 및 완료 대기
+      const operationUrl = `${this.baseUrl}/${operationName}`;
+      let operation: { done: boolean; response: any } = { done: false, response: null };
+      
+      while (!operation.done) {
+        // 10초 대기
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        
+        // 작업 상태 확인
+        const statusResponse = await axios.get(operationUrl, config);
+        operation = statusResponse.data;
+      }
+
+      // 비디오 다운로드 및 저장
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      // 저장 디렉토리가 없으면 생성
+      if (!fs.existsSync(saveDir)) {
+        fs.mkdirSync(saveDir, { recursive: true });
+      }
+
+      const savedFiles = [];
+      const generatedVideos = operation.response?.generatedVideos || [];
+
+      for (let i = 0; i < generatedVideos.length; i++) {
+        const videoUri = generatedVideos[i]?.video?.uri;
+        
+        if (videoUri) {
+          // API 키 추가
+          const downloadUrl = `${videoUri}&key=${this.apiKey}`;
+          
+          // 비디오 다운로드
+          const videoResponse = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+          const filePath = path.join(saveDir, `${fileName}-${i + 1}.mp4`);
+          
+          fs.writeFileSync(filePath, Buffer.from(videoResponse.data));
+          savedFiles.push(filePath);
+        }
+      }
+
+      return {
+        model: model,
+        prompt: prompt,
+        videos: savedFiles,
+        count: savedFiles.length,
+      };
+    } catch (error) {
+      throw this.formatError(error);
+    }
+  }
+
+  /**
+   * Gemini 모델을 사용하여 멀티모달 콘텐츠(텍스트 및 이미지)를 생성합니다.
+   */
+  async generateMultimodalContent({
+    model,
+    contents,
+    responseModalities = ['text', 'image'],
+    temperature = 0.7,
+    max_tokens = 1024,
+    saveDir = './temp',
+    fileName = `gemini-multimodal-${Date.now()}`,
+  }: {
+    model: string;
+    contents: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }>;
+    responseModalities?: string[];
+    temperature?: number;
+    max_tokens?: number;
+    saveDir?: string;
+    fileName?: string;
+  }) {
+    try {
+      const config = this.getRequestConfig();
+      const url = `${this.baseUrl}/models/${model}:generateContent`;
+
+      // 응답 모달리티 변환
+      const modalityMapping: { [key: string]: string } = {
+        'text': 'TEXT',
+        'image': 'IMAGE',
+      };
+
+      const responseModalitiesFormatted = responseModalities.map(
+        modality => modalityMapping[modality] || modality.toUpperCase()
+      );
+
+      const response = await axios.post(
+        url,
+        {
+          contents,
+          generationConfig: {
+            temperature,
+            maxOutputTokens: max_tokens,
+            responseModalities: responseModalitiesFormatted,
+          },
+        },
+        config
+      );
+
+      // 파일 시스템 모듈 임포트
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // 저장 디렉토리가 없으면 생성
+      if (!fs.existsSync(saveDir)) {
+        fs.mkdirSync(saveDir, { recursive: true });
+      }
+
+      // 응답 처리
+      const parts = response.data.candidates?.[0]?.content?.parts || [];
+      const result: {
+        text: string[];
+        images: string[];
+      } = {
+        text: [],
+        images: [],
+      };
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        
+        if (part.text) {
+          result.text.push(part.text);
+        } else if (part.inlineData) {
+          const imageData = part.inlineData.data;
+          const buffer = Buffer.from(imageData, 'base64');
+          const filePath = path.join(saveDir, `${fileName}-${i + 1}.png`);
+          
+          fs.writeFileSync(filePath, buffer);
+          result.images.push(filePath);
+        }
+      }
+
+      return {
+        model: model,
+        text: result.text,
+        images: result.images,
+      };
+    } catch (error) {
+      throw this.formatError(error);
+    }
+  }
 }
 
 // 싱글톤 인스턴스 생성 및 내보내기

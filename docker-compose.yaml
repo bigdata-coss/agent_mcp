@@ -6,7 +6,7 @@ services:
       - "7200:7200"  # GraphDB 웹 인터페이스 및 SPARQL 엔드포인트
     environment:
       - GDB_JAVA_OPTS=-Xmx2g -Dgraphdb.home=/opt/graphdb/home
-      - GDB_HEAP_SIZE=16g
+      - GDB_HEAP_SIZE=2g
     volumes:
       - ./graphdb-data:/opt/graphdb/home  # 데이터 지속성
       - ./imports:/root/graphdb-import  # RDF 파일 임포트 디렉토리
