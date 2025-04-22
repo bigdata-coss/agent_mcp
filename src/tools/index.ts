@@ -1083,10 +1083,71 @@ export const tools = [
     async handler(args: any): Promise<ToolResponse> {
       try {
         const result = await geminiService.generateImage(args);
+        
+        // HTML 형식으로 결과 반환
+        let htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gemini 이미지 생성 결과</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .image-container { margin-top: 20px; }
+    .image-item { margin-bottom: 20px; }
+    img { max-width: 100%; border: 1px solid #ddd; }
+    pre { background-color: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gemini 이미지 생성 결과</h1>
+    <p><strong>모델:</strong> ${result.model}</p>
+    <p><strong>프롬프트:</strong> ${result.prompt}</p>
+    
+    <div class="image-container">`;
+        
+        if (result.images && result.images.length > 0) {
+          result.images.forEach((imgPath: string, index: number) => {
+            // 파일 경로에서 파일 이름만 추출
+            const fileName = imgPath.split(/[\/\\]/).pop();
+            htmlContent += `
+      <div class="image-item">
+        <h3>이미지 ${index + 1}</h3>
+        <img src="${imgPath}" alt="생성된 이미지 ${index + 1}">
+        <p>파일 경로: ${imgPath}</p>
+      </div>`;
+          });
+        } else {
+          htmlContent += `
+      <p>생성된 이미지가 없습니다.</p>`;
+        }
+        
+        if (result.text && result.text.length > 0) {
+          htmlContent += `
+    <div class="text-container">
+      <h2>생성된 텍스트</h2>`;
+          
+          result.text.forEach((text: string, index: number) => {
+            htmlContent += `
+      <div class="text-item">
+        <pre>${text}</pre>
+      </div>`;
+          });
+          
+          htmlContent += `
+    </div>`;
+        }
+        
+        htmlContent += `
+  </div>
+</body>
+</html>`;
+        
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify(result, null, 2)
+            text: htmlContent
           }]
         };
       } catch (error) {
@@ -1280,6 +1341,212 @@ export const tools = [
           content: [{
             type: 'text',
             text: `Gemini 멀티모달 콘텐츠 생성 오류: ${error instanceof Error ? error.message : String(error)}`
+          }]
+        };
+      }
+    }
+  },
+  {
+    name: 'mcp_imagen_generate',
+    description: 'Google Imagen 3 모델을 사용하여 텍스트 프롬프트에서 고품질 이미지를 생성합니다. Imagen 3은 포토리얼리즘, 예술적 디테일, 특정 예술 스타일(인상주의, 애니메이션 등)에 탁월합니다. 생성된 이미지에는 항상 SynthID 워터마크가 포함됩니다. 현재 영어 프롬프트만 지원됩니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: {
+          type: 'string',
+          description: '사용할 Imagen 모델 ID (예: imagen-3.0-generate-002)',
+          default: 'imagen-3.0-generate-002',
+        },
+        prompt: {
+          type: 'string',
+          description: '이미지 생성을 위한 텍스트 프롬프트. 영어로 작성하세요.',
+        },
+        numberOfImages: {
+          type: 'number',
+          description: '생성할 이미지 수 (1-4)',
+          default: 1,
+          minimum: 1,
+          maximum: 4,
+        },
+        aspectRatio: {
+          type: 'string',
+          description: '이미지 가로세로 비율',
+          default: '1:1',
+          enum: ['1:1', '3:4', '4:3', '9:16', '16:9']
+        },
+        personGeneration: {
+          type: 'string',
+          description: '사람 이미지 생성 허용 여부 (DONT_ALLOW: 사람 이미지 생성 차단, ALLOW_ADULT: 성인 이미지만 생성 허용)',
+          default: 'ALLOW_ADULT',
+          enum: ['DONT_ALLOW', 'ALLOW_ADULT']
+        },
+        saveDir: {
+          type: 'string',
+          description: '이미지를 저장할 디렉토리',
+          default: './temp',
+        },
+        fileName: {
+          type: 'string',
+          description: '저장할 이미지 파일 이름 (확장자 제외)',
+        }
+      },
+      required: ['prompt']
+    },
+    async handler(args: any): Promise<ToolResponse> {
+      try {
+        // generateImage 메서드를 사용하지만, Imagen 모델로 고정
+        const modelName = args.model || 'imagen-3.0-generate-002';
+        if (!modelName.includes('imagen')) {
+          throw new Error('이 도구는 Imagen 모델만 지원합니다. 모델 이름에 "imagen"이 포함되어야 합니다.');
+        }
+        
+        const result = await geminiService.generateImage({
+          ...args,
+          model: modelName
+        });
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Imagen 이미지 생성 오류: ${error instanceof Error ? error.message : String(error)}`
+          }]
+        };
+      }
+    }
+  },
+  {
+    name: 'mcp_gemini_create_image',
+    description: 'Gemini 모델을 사용하여 텍스트 프롬프트에서 이미지를 생성합니다. 텍스트와 이미지를 함께 반환합니다. 주요 특징: 1) 생성된 모든 이미지에는 SynthID 워터마크 포함 2) 대화식 이미지 수정 가능 3) 텍스트와 이미지가 혼합된 출력 생성 가능. 최상의 성능을 위해 EN, es-MX, ja-JP, zh-CN, hi-IN 언어를 사용하세요. 이미지 생성이 항상 트리거되지 않을 수 있으므로 "이미지 생성", "이미지 제공" 등의 표현을 명시적으로 요청하세요.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: {
+          type: 'string',
+          description: '사용할 Gemini 모델 ID (예: gemini-2.0-flash-exp-image-generation)',
+          default: 'gemini-2.0-flash-exp-image-generation',
+        },
+        prompt: {
+          type: 'string',
+          description: '이미지 생성을 위한 텍스트 프롬프트. 이미지를 명시적으로 요청하려면 "이미지 생성", "이미지 제공" 등의 표현을 포함하세요.',
+        },
+        saveDir: {
+          type: 'string',
+          description: '이미지를 저장할 디렉토리',
+          default: './temp',
+        },
+        fileName: {
+          type: 'string',
+          description: '저장할 이미지 파일 이름 (확장자 제외)',
+        }
+      },
+      required: ['prompt']
+    },
+    async handler(args: any): Promise<ToolResponse> {
+      try {
+        const modelName = args.model || 'gemini-2.0-flash-exp-image-generation';
+        
+        if (!modelName.includes('gemini')) {
+          throw new Error('이 도구는 Gemini 모델만 지원합니다. 모델 이름에 "gemini"가 포함되어야 합니다.');
+        }
+        
+        const result = await geminiService.generateGeminiImage({
+          model: modelName,
+          prompt: args.prompt,
+          saveDir: args.saveDir || './temp',
+          fileName: args.fileName
+        });
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Gemini 이미지 생성 오류: ${error instanceof Error ? error.message : String(error)}`
+          }]
+        };
+      }
+    }
+  },
+  {
+    name: 'mcp_gemini_edit_image',
+    description: 'Gemini 모델을 사용하여 기존 이미지를 편집합니다. 텍스트 프롬프트와 Base64로 인코딩된 이미지 데이터가 필요합니다. 제한사항: 1) 오디오/동영상 입력 미지원 2) 이미지 생성이 항상 트리거되지 않음(명시적으로 "이미지 업데이트", "이미지 편집" 등 요청 필요) 3) 모델이 가끔 생성을 중단할 수 있음. 이미지에 텍스트를 생성할 때는 먼저 텍스트를 생성한 다음 텍스트가 포함된 이미지를 요청하는 것이 효과적입니다. 멀티턴 이미지 편집(채팅)이 가능하며, 컨텍스트를 유지하면서 이미지를 수정할 수 있습니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model: {
+          type: 'string',
+          description: '사용할 Gemini 모델 ID (예: gemini-2.0-flash-exp-image-generation)',
+          default: 'gemini-2.0-flash-exp-image-generation',
+        },
+        prompt: {
+          type: 'string',
+          description: '이미지 편집을 위한 텍스트 프롬프트. 명시적으로 "이미지 업데이트", "이미지 편집" 등의 표현을 포함하세요.',
+        },
+        imageData: {
+          type: 'string',
+          description: 'Base64로 인코딩된 이미지 데이터. fs.readFileSync(imagePath).toString("base64")로 파일에서 얻을 수 있습니다.',
+        },
+        imageMimeType: {
+          type: 'string',
+          description: '이미지 MIME 타입 (예: image/png, image/jpeg)',
+          default: 'image/png',
+        },
+        saveDir: {
+          type: 'string',
+          description: '편집된 이미지를 저장할 디렉토리',
+          default: './temp',
+        },
+        fileName: {
+          type: 'string',
+          description: '저장할 이미지 파일 이름 (확장자 제외)',
+        }
+      },
+      required: ['prompt', 'imageData']
+    },
+    async handler(args: any): Promise<ToolResponse> {
+      try {
+        const modelName = args.model || 'gemini-2.0-flash-exp-image-generation';
+        
+        if (!modelName.includes('gemini')) {
+          throw new Error('이 도구는 Gemini 모델만 지원합니다. 모델 이름에 "gemini"가 포함되어야 합니다.');
+        }
+        
+        if (!args.imageData) {
+          throw new Error('이미지 데이터가 필요합니다. 유효한 Base64로 인코딩된 이미지 데이터를 제공하세요.');
+        }
+        
+        const result = await geminiService.editGeminiImage({
+          model: modelName,
+          prompt: args.prompt,
+          imageData: args.imageData,
+          imageMimeType: args.imageMimeType || 'image/png',
+          saveDir: args.saveDir || './temp',
+          fileName: args.fileName
+        });
+        
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(result, null, 2)
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Gemini 이미지 편집 오류: ${error instanceof Error ? error.message : String(error)}`
           }]
         };
       }

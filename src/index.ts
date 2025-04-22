@@ -44,10 +44,13 @@ const server = new Server(
         mcp_gemini_generate_text: true,
         mcp_gemini_chat_completion: true,
         mcp_gemini_list_models: true,
-        mcp_gemini_generate_images: true,
+        mcp_gemini_generate_images: false,
         mcp_gemini_generate_image: true,
-        mcp_gemini_generate_videos: true,
-        mcp_gemini_generate_multimodal_content: true
+        mcp_gemini_generate_videos: false,
+        mcp_gemini_generate_multimodal_content: false,
+        mcp_imagen_generate: false,
+        mcp_gemini_create_image: false,
+        mcp_gemini_edit_image: false
       },
     },
   }

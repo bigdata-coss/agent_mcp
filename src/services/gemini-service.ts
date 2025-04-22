@@ -267,49 +267,28 @@ class GeminiService {
   }
 
   /**
-   * Gemini 또는 Imagen 모델을 사용하여 이미지를 생성합니다.
-   * 
-   * @param model - 사용할 모델 ID
-   *   - 'imagen-3.0-generate-002'와 같은 Imagen 모델 사용 시 Imagen API 호출
-   *   - 'gemini-2.0-flash-exp-image-generation'과 같은 Gemini 모델 사용 시 Gemini API 호출
-   * @param prompt - 이미지 생성을 위한 텍스트 프롬프트
-   * @param options - 추가 옵션 (모델에 따라 사용되는 옵션이 다름)
-   * @returns 생성된 이미지 파일 경로와 관련 정보
+   * 텍스트 프롬프트에서 이미지를 생성합니다.
    */
   async generateImage({
     model,
     prompt,
-    numberOfImages = 1,
-    size = '1024x1024',
-    aspectRatio = '1:1',
-    personGeneration = 'ALLOW_ADULT',
+    numberOfImages,
+    aspectRatio,
+    personGeneration,
     saveDir = './temp',
     fileName,
-    imageData,
-    imageMimeType = 'image/png',
-    responseModalities = ["TEXT", "IMAGE"],
   }: {
     model: string;
     prompt: string;
     numberOfImages?: number;
-    size?: string;
     aspectRatio?: string;
     personGeneration?: string;
     saveDir?: string;
     fileName?: string;
-    imageData?: string; // 이미지 편집에 사용 (Gemini 모델)
-    imageMimeType?: string; // 이미지 MIME 타입 (Gemini 모델)
-    responseModalities?: string[]; // Gemini 모델 응답 형식
   }) {
     try {
-      if (!fileName) {
-        fileName = model.includes('imagen') 
-          ? `imagen-${Date.now()}`
-          : `gemini-${Date.now()}`;
-      }
-
-      // Imagen 모델 (Imagen 3)
-      if (model.includes('imagen')) {
+      // Imagen 모델을 사용하는 경우
+      if (model.startsWith('imagen-')) {
         return await this.generateImageWithImagen({
           model,
           prompt,
@@ -317,34 +296,27 @@ class GeminiService {
           aspectRatio,
           personGeneration,
           saveDir,
-          fileName
+          fileName,
         });
-      } 
-      // Gemini 모델 (Gemini 2.0)
-      else {
-        // 이미지 편집 (이미지 데이터가 제공된 경우)
-        if (imageData) {
-          return await this.generateImageWithGeminiEdit({
-            model,
-            prompt,
-            imageData,
-            imageMimeType,
-            saveDir,
-            fileName,
-            responseModalities
-          });
-        } 
-        // 새 이미지 생성
-        else {
-          return await this.generateImageWithGemini({
-            model,
-            prompt,
-            saveDir,
-            fileName,
-            responseModalities
-          });
-        }
       }
+
+      // Gemini 모델이면서 이미지 편집 모델을 사용하는 경우
+      if (model.endsWith('-image-generation-editing')) {
+        return await this.generateImageWithGeminiEdit({
+          model,
+          prompt,
+          saveDir,
+          fileName,
+        });
+      }
+
+      // 기본적으로 Gemini 모델을 사용
+      return await this.generateImageWithGemini({
+        model,
+        prompt,
+        saveDir,
+        fileName,
+      });
     } catch (error) {
       throw this.formatError(error);
     }
@@ -426,13 +398,11 @@ class GeminiService {
     prompt,
     saveDir = './temp',
     fileName = `gemini-${Date.now()}`,
-    responseModalities = ["TEXT", "IMAGE"],
   }: {
     model: string;
     prompt: string;
     saveDir?: string;
     fileName?: string;
-    responseModalities?: string[];
   }) {
     const config = this.getRequestConfig();
     const url = `${this.baseUrl}/models/${model}:generateContent`;
@@ -449,9 +419,6 @@ class GeminiService {
             ],
           },
         ],
-        generationConfig: {
-          responseModalities,
-        },
       },
       config
     );
@@ -505,19 +472,13 @@ class GeminiService {
   private async generateImageWithGeminiEdit({
     model,
     prompt,
-    imageData,
-    imageMimeType = 'image/png',
     saveDir = './temp',
     fileName = `gemini-edited-${Date.now()}`,
-    responseModalities = ["TEXT", "IMAGE"],
   }: {
     model: string;
     prompt: string;
-    imageData: string;
-    imageMimeType?: string;
     saveDir?: string;
     fileName?: string;
-    responseModalities?: string[];
   }) {
     const config = this.getRequestConfig();
     const url = `${this.baseUrl}/models/${model}:generateContent`;
@@ -531,18 +492,9 @@ class GeminiService {
               {
                 text: prompt,
               },
-              {
-                inlineData: {
-                  mimeType: imageMimeType,
-                  data: imageData,
-                },
-              },
             ],
           },
         ],
-        generationConfig: {
-          responseModalities,
-        },
       },
       config
     );
@@ -703,7 +655,6 @@ class GeminiService {
   async generateMultimodalContent({
     model,
     contents,
-    responseModalities = ['text', 'image'],
     temperature = 0.7,
     max_tokens = 1024,
     saveDir = './temp',
@@ -711,7 +662,6 @@ class GeminiService {
   }: {
     model: string;
     contents: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }>;
-    responseModalities?: string[];
     temperature?: number;
     max_tokens?: number;
     saveDir?: string;
@@ -721,16 +671,6 @@ class GeminiService {
       const config = this.getRequestConfig();
       const url = `${this.baseUrl}/models/${model}:generateContent`;
 
-      // 응답 모달리티 변환
-      const modalityMapping: { [key: string]: string } = {
-        'text': 'TEXT',
-        'image': 'IMAGE',
-      };
-
-      const responseModalitiesFormatted = responseModalities.map(
-        modality => modalityMapping[modality] || modality.toUpperCase()
-      );
-
       const response = await axios.post(
         url,
         {
@@ -738,7 +678,6 @@ class GeminiService {
           generationConfig: {
             temperature,
             maxOutputTokens: max_tokens,
-            responseModalities: responseModalitiesFormatted,
           },
         },
         config
@@ -789,7 +728,10 @@ class GeminiService {
   }
 
   /**
-   * Gemini 2.0 모델을 사용하여 텍스트 프롬프트에서 이미지를 생성합니다.
+   * Gemini 모델을 사용하여 텍스트 프롬프트에서 이미지를 생성합니다.
+   * 공식 Gemini API 예제와 일치하게 구현되었습니다.
+   * 
+   * @returns 생성된 텍스트와 이미지 파일 경로 정보
    */
   async generateGeminiImage({
     model,
@@ -803,9 +745,14 @@ class GeminiService {
     fileName?: string;
   }) {
     try {
+      if (!model.includes('gemini')) {
+        throw new Error('이 메서드는 Gemini 모델만 지원합니다. 모델 이름에 "gemini"가 포함되어야 합니다.');
+      }
+      
       const config = this.getRequestConfig();
       const url = `${this.baseUrl}/models/${model}:generateContent`;
 
+      // responseModalities 필드 제거 - API가 해당 필드를 인식하지 않음
       const response = await axios.post(
         url,
         {
@@ -818,9 +765,6 @@ class GeminiService {
               ],
             },
           ],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"],
-          },
         },
         config
       );
@@ -864,6 +808,7 @@ class GeminiService {
         prompt: prompt,
         text: result.text,
         images: result.images,
+        count: result.images.length,
       };
     } catch (error) {
       throw this.formatError(error);
@@ -871,7 +816,16 @@ class GeminiService {
   }
 
   /**
-   * Gemini 2.0 모델을 사용하여 이미지를 편집합니다.
+   * Gemini 모델을 사용하여 이미지를 편집합니다.
+   * 공식 Gemini API 예제와 일치하게 구현되었습니다.
+   * 
+   * @param model - 사용할 Gemini 모델 ID (예: gemini-2.0-flash-exp-image-generation)
+   * @param prompt - 이미지 편집을 위한 텍스트 프롬프트 (예: "이미지에 라마를 추가해 주세요")
+   * @param imageData - Base64로 인코딩된 이미지 데이터
+   * @param imageMimeType - 이미지의 MIME 타입 (기본값: 'image/png')
+   * @param saveDir - 생성된 이미지를 저장할 디렉토리
+   * @param fileName - 저장할 이미지 파일 이름 (확장자 제외)
+   * @returns 생성된 텍스트와 이미지 파일 경로 정보
    */
   async editGeminiImage({
     model,
@@ -889,9 +843,18 @@ class GeminiService {
     fileName?: string;
   }) {
     try {
+      if (!model.includes('gemini')) {
+        throw new Error('이 메서드는 Gemini 모델만 지원합니다. 모델 이름에 "gemini"가 포함되어야 합니다.');
+      }
+
+      if (!imageData) {
+        throw new Error('이미지 데이터가 필요합니다. Base64로 인코딩된, 유효한 이미지 데이터를 제공하세요.');
+      }
+      
       const config = this.getRequestConfig();
       const url = `${this.baseUrl}/models/${model}:generateContent`;
 
+      // responseModalities 필드 제거 - API가 해당 필드를 인식하지 않음
       const response = await axios.post(
         url,
         {
@@ -899,7 +862,7 @@ class GeminiService {
             {
               parts: [
                 {
-                  text: prompt,
+                  text: prompt
                 },
                 {
                   inlineData: {
@@ -910,9 +873,6 @@ class GeminiService {
               ],
             },
           ],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"],
-          },
         },
         config
       );
@@ -956,6 +916,7 @@ class GeminiService {
         prompt: prompt,
         text: result.text,
         images: result.images,
+        count: result.images.length,
       };
     } catch (error) {
       throw this.formatError(error);
