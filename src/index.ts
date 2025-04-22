@@ -45,7 +45,7 @@ const server = new Server(
         mcp_gemini_chat_completion: true,
         mcp_gemini_list_models: true,
         mcp_gemini_generate_images: false,
-        mcp_gemini_generate_image: true,
+        mcp_gemini_generate_image: false,
         mcp_gemini_generate_videos: false,
         mcp_gemini_generate_multimodal_content: false,
         mcp_imagen_generate: false,
