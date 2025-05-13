@@ -158,10 +158,10 @@ const geminiTools = {
           minimum: 1,
           maximum: 4,
         },
-        size: {
+        aspectRatio: {
           type: 'string',
-          description: '생성할 이미지 크기',
-          default: '1024x1024',
+          description: '생성할 이미지 비율',
+          default: '1:1',
         },
         saveDir: {
           type: 'string',
@@ -180,7 +180,7 @@ const geminiTools = {
         model: args.model || DEFAULT_IMAGE_MODEL,
         prompt: args.prompt,
         numberOfImages: args.numberOfImages,
-        size: args.size,
+        aspectRatio: args.aspectRatio,
         saveDir: args.saveDir,
         fileName: args.fileName,
       });
@@ -307,15 +307,6 @@ const geminiTools = {
             },
           },
         },
-        responseModalities: {
-          type: 'array',
-          description: '응답에 포함할 모달리티 (텍스트, 이미지)',
-          default: ['text', 'image'],
-          items: {
-            type: 'string',
-            enum: ['text', 'image'],
-          },
-        },
         temperature: {
           type: 'number',
           description: '생성 랜덤성 정도 (0.0 - 2.0)',
@@ -342,7 +333,6 @@ const geminiTools = {
       return await geminiService.generateMultimodalContent({
         model: args.model || DEFAULT_MULTIMODAL_MODEL,
         contents: args.contents,
-        responseModalities: args.responseModalities,
         temperature: args.temperature,
         max_tokens: args.max_tokens,
         saveDir: args.saveDir,

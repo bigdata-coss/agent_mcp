@@ -17,7 +17,7 @@ import { ToolResponse } from "./types/index.js";
 // MCP 서버 초기화
 const server = new Server(
   {
-    name: "ontology-ollama-mcp",
+    name: "ontology-lmstudio-mcp",
     version: "1.0.0",
   },
   {
@@ -28,13 +28,13 @@ const server = new Server(
         mcp_sparql_list_repositories: true,
         mcp_sparql_list_graphs: true,
         mcp_sparql_get_resource_info: true,
-        mcp_ollama_run: true,
-        mcp_ollama_show: true,
-        mcp_ollama_pull: true,
-        mcp_ollama_list: true,
-        mcp_ollama_rm: true,
-        mcp_ollama_chat_completion: true,
-        mcp_ollama_status: true,
+        mcp_lmstudio_run: true,
+        mcp_lmstudio_show: true,
+        mcp_lmstudio_pull: true,
+        mcp_lmstudio_list: true,
+        mcp_lmstudio_rm: true,
+        mcp_lmstudio_chat_completion: true,
+        mcp_lmstudio_status: true,
         mcp_http_request: true,
         mcp_openai_chat: true,
         mcp_openai_image: true,
@@ -131,9 +131,9 @@ async function main() {
     console.warn('SPARQL_ENDPOINT 환경 변수가 설정되지 않았습니다. 기본값(http://localhost:7200)이 사용됩니다.');
   }
 
-  // Ollama 환경 변수 로그
-  console.error('Ollama 설정:');
-  console.error(`- 엔드포인트: ${process.env.OLLAMA_ENDPOINT || 'http://localhost:11434'}`);
+  // LM Studio 환경 변수 로그
+  console.error('LM Studio 설정:');
+  console.error(`- 엔드포인트: ${process.env.LMSTUDIO_ENDPOINT || 'http://localhost:1234/v1'}`);
   
   // OpenAI API 설정 확인
   if (process.env.OPENAI_API_KEY) {
@@ -154,22 +154,24 @@ async function main() {
     console.warn('주의: GEMINI_API_KEY가 설정되지 않았습니다. Gemini 기능을 사용할 수 없습니다.');
   }
   
-  // 현재 설치된 모델 목록 확인 시도
+  // LM Studio 서버 상태 확인
   try {
-    const { exec } = require('child_process');
-    exec('ollama list', (error: any, stdout: string, stderr: string) => {
-      if (!error && stdout) {
-        console.error('설치된 Ollama 모델:');
-        console.error(stdout);
-      }
-    });
+    const axios = await import('axios');
+    axios.default.get(`${process.env.LMSTUDIO_ENDPOINT || 'http://localhost:1234/v1'}/models`)
+      .then((response) => {
+        console.error('LM Studio 서버 연결됨');
+        console.error('사용 가능한 모델:', response.data?.data?.map((m: any) => m.id).join(', ') || '정보 없음');
+      })
+      .catch(() => {
+        console.warn('LM Studio 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.');
+      });
   } catch (e) {
     // 무시 - 단순 정보 표시 용도
   }
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Ontology & Ollama & OpenAI & Gemini MCP 서버가 stdio에서 실행 중입니다');
+  console.error('Ontology & LM Studio & OpenAI & Gemini MCP 서버가 stdio에서 실행 중입니다');
 }
 
 main().catch((error) => {

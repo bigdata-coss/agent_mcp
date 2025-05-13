@@ -1,5 +1,5 @@
 import { SparqlService } from '../services/sparql-service.js';
-import ollamaService from '../services/ollama-service.js';
+import lmstudioService from '../services/lmstudio-service.js';
 import httpService from '../services/http-service.js';
 import openaiService from '../services/openai-service.js';
 import geminiService from '../services/gemini-service.js';
@@ -270,33 +270,32 @@ export const tools = [
     }
   },
   {
-    name: 'mcp_ollama_run',
-    description: 'Ollama 모델을 실행하여 응답을 생성합니다',
+    name: 'mcp_lmstudio_run',
+    description: 'LM Studio 모델을 실행하여 응답을 생성합니다',
     inputSchema: {
       type: 'object',
       properties: {
         name: {
           type: 'string',
-          description: '실행할 모델 이름'
+          description: '사용할 LM Studio 모델 이름'
         },
         prompt: {
           type: 'string',
-          description: '모델에 전송할 프롬프트'
+          description: '모델에 전달할 프롬프트'
         },
         timeout: {
           type: 'number',
-          description: '타임아웃(밀리초 단위, 기본값: 60000)',
-          minimum: 1000
+          description: '타임아웃 (밀리초)'
         }
       },
       required: ['name', 'prompt']
     },
     async handler(args: any): Promise<ToolResponse> {
-      const result = await ollamaService.runModel(args);
+      const result = await lmstudioService.runModel(args);
       return {
         content: [
           {
-            type: 'text' as const,
+            type: 'text',
             text: result
           }
         ]
@@ -304,24 +303,24 @@ export const tools = [
     }
   },
   {
-    name: 'mcp_ollama_show',
-    description: 'Ollama 모델의 정보를 표시합니다',
+    name: 'mcp_lmstudio_show',
+    description: 'LM Studio 모델의 정보를 표시합니다',
     inputSchema: {
       type: 'object',
       properties: {
         name: {
           type: 'string',
-          description: '정보를 조회할 모델 이름'
+          description: '정보를 표시할 LM Studio 모델 이름'
         }
       },
       required: ['name']
     },
     async handler(args: any): Promise<ToolResponse> {
-      const result = await ollamaService.showModel(args);
+      const result = await lmstudioService.showModel(args);
       return {
         content: [
           {
-            type: 'text' as const,
+            type: 'text',
             text: result
           }
         ]
@@ -329,8 +328,8 @@ export const tools = [
     }
   },
   {
-    name: 'mcp_ollama_pull',
-    description: 'Ollama 레지스트리에서 모델을 다운로드합니다',
+    name: 'mcp_lmstudio_pull',
+    description: 'LM Studio 애플리케이션에서 모델을 관리하는 방법을 안내합니다',
     inputSchema: {
       type: 'object',
       properties: {
@@ -342,11 +341,11 @@ export const tools = [
       required: ['name']
     },
     async handler(args: any): Promise<ToolResponse> {
-      const result = await ollamaService.pullModel(args);
+      const result = await lmstudioService.pullModel(args);
       return {
         content: [
           {
-            type: 'text' as const,
+            type: 'text',
             text: result
           }
         ]
@@ -354,18 +353,18 @@ export const tools = [
     }
   },
   {
-    name: 'mcp_ollama_list',
-    description: '사용 가능한 Ollama 모델 목록을 조회합니다',
+    name: 'mcp_lmstudio_list',
+    description: '사용 가능한 LM Studio 모델 목록을 조회합니다',
     inputSchema: {
       type: 'object',
       properties: {}
     },
     async handler(args: any): Promise<ToolResponse> {
-      const result = await ollamaService.listModels();
+      const result = await lmstudioService.listModels();
       return {
         content: [
           {
-            type: 'text' as const,
+            type: 'text',
             text: result
           }
         ]
@@ -373,8 +372,8 @@ export const tools = [
     }
   },
   {
-    name: 'mcp_ollama_rm',
-    description: 'Ollama 모델을 삭제합니다',
+    name: 'mcp_lmstudio_rm',
+    description: 'LM Studio 애플리케이션에서 모델을 관리하는 방법을 안내합니다',
     inputSchema: {
       type: 'object',
       properties: {
@@ -386,11 +385,11 @@ export const tools = [
       required: ['name']
     },
     async handler(args: any): Promise<ToolResponse> {
-      const result = await ollamaService.removeModel(args);
+      const result = await lmstudioService.removeModel(args);
       return {
         content: [
           {
-            type: 'text' as const,
+            type: 'text',
             text: result
           }
         ]
@@ -398,17 +397,18 @@ export const tools = [
     }
   },
   {
-    name: 'mcp_ollama_chat_completion',
-    description: 'OpenAI 호환 채팅 완성 API를 사용하여 응답을 생성합니다',
+    name: 'mcp_lmstudio_chat_completion',
+    description: 'LM Studio 모델을 사용하여 채팅 대화를 완성합니다',
     inputSchema: {
       type: 'object',
       properties: {
         model: {
           type: 'string',
-          description: '사용할 Ollama 모델 이름'
+          description: '사용할 LM Studio 모델 이름'
         },
         messages: {
           type: 'array',
+          description: '대화 메시지 목록',
           items: {
             type: 'object',
             properties: {
@@ -419,31 +419,26 @@ export const tools = [
               content: {
                 type: 'string'
               }
-            },
-            required: ['role', 'content']
-          },
-          description: '대화 메시지 배열'
+            }
+          }
         },
         temperature: {
           type: 'number',
-          description: '샘플링 온도(0-2)',
-          minimum: 0,
-          maximum: 2
+          description: '생성 랜덤성 정도 (0.0 - 1.0)'
         },
         timeout: {
           type: 'number',
-          description: '타임아웃(밀리초 단위, 기본값: 60000)',
-          minimum: 1000
+          description: '타임아웃 (밀리초)'
         }
       },
       required: ['model', 'messages']
     },
     async handler(args: any): Promise<ToolResponse> {
-      const result = await ollamaService.chatCompletion(args);
+      const result = await lmstudioService.chatCompletion(args);
       return {
         content: [
           {
-            type: 'text' as const,
+            type: 'text',
             text: result
           }
         ]
@@ -451,21 +446,15 @@ export const tools = [
     }
   },
   {
-    name: 'mcp_ollama_status',
-    description: 'Ollama 서버 상태 확인',
+    name: 'mcp_lmstudio_status',
+    description: 'LM Studio 서버 상태 확인',
     inputSchema: {
       type: 'object',
-      properties: {
-        random_string: {
-          type: 'string',
-          description: 'Dummy parameter for no-parameter tools'
-        }
-      },
-      required: ['random_string']
+      properties: {}
     },
     async handler(args: any): Promise<ToolResponse> {
       try {
-        const result = await ollamaService.getStatus();
+        const result = await lmstudioService.getStatus();
         return {
           content: [{
             type: 'text',
@@ -476,7 +465,10 @@ export const tools = [
         return {
           content: [{
             type: 'text',
-            text: `Status 확인 오류: ${error instanceof Error ? error.message : String(error)}`
+            text: JSON.stringify({
+              status: 'offline',
+              error: String(error)
+            }, null, 2)
           }]
         };
       }
