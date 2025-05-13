@@ -176,7 +176,7 @@ const geminiTools = {
       },
     },
     async handler(args: any) {
-      return await geminiService.generateImages({
+      return await geminiService.generateImage({
         model: args.model || DEFAULT_IMAGE_MODEL,
         prompt: args.prompt,
         numberOfImages: args.numberOfImages,
